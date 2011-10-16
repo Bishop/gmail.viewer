@@ -82,4 +82,57 @@ $ch = curl_init();
 curl_setopt_array($ch, $options);
 $response = curl_exec($ch);
 
-var_dump($response);
+$xml = simplexml_load_string($response);
+
+?><!DOCTYPE html>
+
+<html>
+	<head>
+		<title><?php echo $xml->title; ?></title>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+
+		<style type="text/css">
+			* { margin: 0; paddin: 0; }
+			body { width: 800px; margin: 0 auto; padding: 2em 0; font-family: Verdana, sans-serif; font-size: 10pt; }
+			h1 { font-family: Georgia, serif; font-size: 18pt; font-weight: normal; line-height: 2em; }
+			table { margin: 1em 0 1em -6px; table-layout: fixed; width: 100%; }
+			td, th { text-align: left; padding: 2px 3px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+			table a { color: black; }
+			td:first-child { font-size: 90%; }
+			.c_date { width: 20%; }
+			.c_subj { width: 50%; }
+			.c_from { width: 30%; }
+		</style>
+	</head>
+
+	<body>
+		<h1><?php echo $xml->tagline; ?> (<?php echo $xml->fullcount ?>)</h1>
+
+		<p><a href="<?php echo $xml->link['href']?>">Go to Inbox</a></p>
+
+		<table>
+			<colgroup>
+				<col class="c_date">
+				<col class="c_subj">
+				<col class="c_from">
+			</colgroup>
+			<thead>
+				<tr>
+					<th>Date</th>
+					<th>Subject</th>
+					<th>From</th>
+				</tr>
+			</thead>
+			<tbody>
+				<?php foreach ($xml->entry as $entry): ?>
+				<?php /** @var $entry SimpleXMLElement */ ?>
+				<tr>
+					<td><?php echo $entry->issued ?></td>
+					<td><a href="<?php echo $entry->link['href'] ?>"><?php echo $entry->title ?></a></td>
+					<td><?php echo $entry->author->name ?> (<a href="mailto:<?php echo $entry->author->email ?>"><?php echo $entry->author->email ?></a>)</td>
+				</tr>
+				<?php endforeach ?>
+			</tbody>
+		</table>
+	</body>
+</html>
