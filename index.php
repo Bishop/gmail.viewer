@@ -2,10 +2,9 @@
 
 require_once 'OAuth.php';
 
-/**
- * Address of GMail unread messages' feed
- */
-define('FEED_URL', 'https://mail.google.com/mail/feed/atom');
+$google_services = array(
+	'mail_feed' => 'https://mail.google.com/mail/feed/atom',
+);
 
 $google_oauth = array(
 	'requestTokenUrl' => 'https://www.google.com/accounts/OAuthGetRequestToken',
@@ -58,7 +57,7 @@ if (isset($_GET['oauth_token'])) {
 $token = @$_SESSION['token'];
 
 if (!$token) {
-	$oauth_tokens = get_tokens($google_oauth['requestTokenUrl'], array('scope' => FEED_URL));
+	$oauth_tokens = get_tokens($google_oauth['requestTokenUrl'], array('scope' => $google_services['mail_feed']));
 	$_SESSION['tokens'] = $oauth_tokens;
 
 	$callback_url = 'http://' . $_SERVER['HTTP_HOST'] . $_SERVER['PHP_SELF'];
@@ -71,14 +70,14 @@ if (!$token) {
 $oauth_tokens = $_SESSION['tokens'];
 
 $request = get_request(
-	FEED_URL,
+	$google_services['mail_feed'],
 	array('oauth_token' => $oauth_tokens['oauth_token']),
 	new OAuthToken($oauth_tokens['oauth_token'], $oauth_tokens['oauth_token_secret'])
 );
 
 
 $options = array(
-	CURLOPT_URL => FEED_URL,
+	CURLOPT_URL => $google_services['mail_feed'],
 	CURLOPT_HTTPHEADER => array($request->to_header()),
 	CURLOPT_HEADER => false,
 	CURLOPT_RETURNTRANSFER => true,
