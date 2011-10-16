@@ -12,7 +12,7 @@ $google_oauth = array(
 	'accessTokenUrl' => 'https://www.google.com/accounts/OAuthGetAccessToken',
 );
 
-function get_request($url, $params = array(), $token = null)
+function get_request($url, $params = array(), $sign_token = null)
 {
 	$consumer_key = 'anonymous';
 	$consumer_secret = 'anonymous';
@@ -21,35 +21,35 @@ function get_request($url, $params = array(), $token = null)
 
 	$request = OAuthRequest::from_consumer_and_token($consumer, null, "GET", $url, $params);
 
-	$request->sign_request(new OAuthSignatureMethod_HMAC_SHA1, $consumer, $token);
+	$request->sign_request(new OAuthSignatureMethod_HMAC_SHA1, $consumer, $sign_token);
 
 	return $request;
 }
 
-function get_tokens($url, $params = array(), $token = null)
+function get_token($url, $params = array(), $sign_token = null)
 {
-	$request = get_request($url, $params, $token);
+	$request = get_request($url, $params, $sign_token);
 
 	$response = file_get_contents($request->to_url());
 
 	$oauth_tokens = array();
 	parse_str($response, $oauth_tokens);
 
-	return $oauth_tokens;
+	return new OAuthToken($oauth_tokens['oauth_token'], $oauth_tokens['oauth_token_secret']);
 }
 
 session_start();
 
 if (isset($_GET['oauth_token'])) {
-	$oauth_tokens = $_SESSION['tokens'];
+	$request_token = $_SESSION['request_token'];
 
-	$oauth_tokens = get_tokens(
+	$access_token = get_token(
 		$google_oauth['accessTokenUrl'],
-		array('oauth_token' => $oauth_tokens['oauth_token']),
-		new OAuthToken($oauth_tokens['oauth_token'], $oauth_tokens['oauth_token_secret'])
+		array('oauth_token' => $request_token->key),
+		$request_token
 	);
-	$_SESSION['token'] = $oauth_tokens['oauth_token'];
-	$_SESSION['tokens'] = $oauth_tokens;
+	$_SESSION['token'] = $access_token;
+	unset($_SESSION['request_token']);
 	header("Location: /");
 	exit;
 }
@@ -57,24 +57,18 @@ if (isset($_GET['oauth_token'])) {
 $token = @$_SESSION['token'];
 
 if (!$token) {
-	$oauth_tokens = get_tokens($google_oauth['requestTokenUrl'], array('scope' => $google_services['mail_feed']));
-	$_SESSION['tokens'] = $oauth_tokens;
+	$token = get_token($google_oauth['requestTokenUrl'], array('scope' => $google_services['mail_feed']));
+	$_SESSION['request_token'] = $token;
 
 	$callback_url = 'http://' . $_SERVER['HTTP_HOST'] . $_SERVER['PHP_SELF'];
-	$url = $google_oauth['userAuthorizationUrl'] . "?oauth_token={$oauth_tokens['oauth_token']}&oauth_callback=" . urlencode($callback_url);
+	$url = $google_oauth['userAuthorizationUrl'] .
+			"?oauth_token={$token->key}&oauth_callback=" . urlencode($callback_url);
 
 	header("Location: $url");
 	exit();
 }
 
-$oauth_tokens = $_SESSION['tokens'];
-
-$request = get_request(
-	$google_services['mail_feed'],
-	array('oauth_token' => $oauth_tokens['oauth_token']),
-	new OAuthToken($oauth_tokens['oauth_token'], $oauth_tokens['oauth_token_secret'])
-);
-
+$request = get_request($google_services['mail_feed'], array('oauth_token' => $token->key), $token);
 
 $options = array(
 	CURLOPT_URL => $google_services['mail_feed'],
